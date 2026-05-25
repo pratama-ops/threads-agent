@@ -2,3 +2,5 @@
 node_modules/
 .DS_Store
 data/threads.db
+data/threads.db-shm
+data/threads.db-wal
