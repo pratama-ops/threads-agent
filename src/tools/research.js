@@ -3,6 +3,8 @@ dotenv.config();
 
 import { getMemoryContext } from './memory.js';
 import db from '../db.js';
+import { withRetry } from '../utils/retry.js';
+import { parseLLMJson } from '../utils/parseLLM.js';
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -87,18 +89,22 @@ async function searchTavily(queries) {
     const result = [];
 
     for (const query of queries) {
-        const response = await fetch('https://api.tavily.com/search', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${TAVILY_API_KEY}`
-            },
-            body: JSON.stringify({
-                query,
-                search_depth: 'basic',
-                max_results: 5,
-                include_answer: true
-            })
+        const response = await withRetry(async () => {
+            const res = await fetch('https://api.tavily.com/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${TAVILY_API_KEY}`
+                },
+                body: JSON.stringify({
+                    query,
+                    search_depth: 'basic',
+                    max_results: 5,
+                    include_answer: true
+                })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res;
         });
 
         const data = await response.json();
@@ -116,52 +122,58 @@ async function searchTavily(queries) {
 
 //rangkum hasil dari tavily jadi market context harian
 async function summarizeWithGroq(newsData) {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${GROQ_API_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-                {
-                    role: 'system',
-                    content: `Kamu adalah analis pasar forex dan crypto. 
+    const response = await withRetry(async () => {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${GROQ_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Kamu adalah analis pasar forex dan crypto. 
 Rangkum data berita berikut menjadi market context singkat dalam Bahasa Indonesia.
 Format output:
 - Kondisi pasar hari ini
 - Event penting yang sedang terjadi
 - Sentiment umum (bullish/bearish/sideways)
 Maksimal 150 kata.`
-                },
-                {
-                    role: 'user',
-                    content: JSON.stringify(newsData)
-                }
-            ],
-            temperature: 0.3
-        })
+                    },
+                    {
+                        role: 'user',
+                        content: JSON.stringify(newsData)
+                    }
+                ],
+                temperature: 0.3
+            })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res;
     });
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    const content = data.choices[0].message.content;
+    return content; // Returns string summary, no JSON parsing needed
 }
 
 //generate ide konten mingguan
 async function generateIdeasWithGroq(trendingData, memoryContext) {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${GROQ_API_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-                {
-                    role: 'system',
-                    content: `Kamu adalah content strategist untuk akun Threads tentang trading forex dan crypto.
+    const response = await withRetry(async () => {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${GROQ_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Kamu adalah content strategist untuk akun Threads tentang trading forex dan crypto.
 Tugasmu adalah generate ide konten yang engaging berdasarkan data trending dan evaluasi sebelumnya.
 
 ${memoryContext}
@@ -183,21 +195,22 @@ Output HARUS berupa JSON array dengan format:
 ]
 
 Generate tepat 10 ide. Respond dengan JSON saja, tanpa teks lain.`
-                },
-                {
-                    role: 'user',
-                    content: `Data trending minggu ini: ${JSON.stringify(trendingData)}`
-                }
-            ],
-            temperature: 0.7
-        })
+                    },
+                    {
+                        role: 'user',
+                        content: `Data trending minggu ini: ${JSON.stringify(trendingData)}`
+                    }
+                ],
+                temperature: 0.7
+            })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res;
     });
-
     const data = await response.json()
     console.log('Groq response:', JSON.stringify(data, null, 2)); 
-    const content = data.choices[0].message.content
+    const content = data.choices[0].message.content;
 
-    //parse output json dari llm
-    const clean = content.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    // Parse dan validasi output JSON dari LLM sebagai array
+    return parseLLMJson(content, 'array');
 }

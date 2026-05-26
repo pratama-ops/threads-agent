@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import db from '../db.js';
+import { withRetry } from '../utils/retry.js';
 
 const THREADS_ACCESS_TOKEN = process.env.THREADS_ACCESS_TOKEN;
 const THREADS_USER_ID = process.env.THREADS_USER_ID;
@@ -85,14 +86,18 @@ async function createContainer(text, replyToId = null) {
     body.reply_to_id = replyToId;
   }
 
-  const response = await fetch(
-    `https://graph.threads.net/v1.0/${THREADS_USER_ID}/threads`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }
-  );
+  const response = await withRetry(async () => {
+    const res = await fetch(
+      `https://graph.threads.net/v1.0/${THREADS_USER_ID}/threads`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+  });
 
   const data = await response.json();
 
@@ -105,17 +110,21 @@ async function createContainer(text, replyToId = null) {
 
 // Helper: Step 2 - publish container yang sudah dibuat
 async function publishContainer(containerId) {
-  const response = await fetch(
-    `https://graph.threads.net/v1.0/${THREADS_USER_ID}/threads_publish`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        creation_id: containerId,
-        access_token: THREADS_ACCESS_TOKEN
-      })
-    }
-  );
+  const response = await withRetry(async () => {
+    const res = await fetch(
+      `https://graph.threads.net/v1.0/${THREADS_USER_ID}/threads_publish`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creation_id: containerId,
+          access_token: THREADS_ACCESS_TOKEN
+        })
+      }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+  });
 
   const data = await response.json();
 

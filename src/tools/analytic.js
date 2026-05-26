@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import db from '../db.js';
+import { withRetry } from '../utils/retry.js';
 
 const THREADS_ACCESS_TOKEN = process.env.THREADS_ACCESS_TOKEN;
 
@@ -72,10 +73,14 @@ export async function fetchAllMetrics() {
  * @returns {object} views, likes, replies, reposts
  */
 async function fetchPostMetrics(threadsPostId) {
-  const response = await fetch(
-    `https://graph.threads.net/v1.0/${threadsPostId}/insights?metric=views,likes,replies,reposts&access_token=${THREADS_ACCESS_TOKEN}`,
-    { method: 'GET' }
-  );
+  const response = await withRetry(async () => {
+    const res = await fetch(
+      `https://graph.threads.net/v1.0/${threadsPostId}/insights?metric=views,likes,replies,reposts&access_token=${THREADS_ACCESS_TOKEN}`,
+      { method: 'GET' }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+  });
 
   const data = await response.json();
 

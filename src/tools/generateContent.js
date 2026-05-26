@@ -1,5 +1,7 @@
 import db from '../db.js';
 import { getMemoryContext } from './memory.js';
+import { withRetry } from '../utils/retry.js';
+import { parseLLMJson } from '../utils/parseLLM.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
@@ -61,18 +63,19 @@ export function getNextIdea() {
 
 // hit Groq API untuk generate 3 variasi draft
 async function generateWithGroq(idea, dailyContext, memoryContext) {
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        {
-          role: 'system',
-          content: `Kamu adalah copywriter ahli untuk konten Threads tentang trading forex dan crypto.
+  const response = await withRetry(async () => {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          {
+            role: 'system',
+            content: `Kamu adalah copywriter ahli untuk konten Threads tentang trading forex dan crypto.
 Tugasmu adalah membuat threaded post yang engaging — bukan single post biasa.
 
 FORMAT THREADED POST:
@@ -116,21 +119,24 @@ Output HARUS berupa JSON array of arrays — 3 variasi thread, tiap thread beris
 ]
 
 Respond dengan JSON saja, tanpa teks lain.`
-        },
-        {
-          role: 'user',
-          content: `Buatkan 3 variasi threaded post dengan:
+          },
+          {
+            role: 'user',
+            content: `Buatkan 3 variasi threaded post dengan:
 Angle: ${idea.angle}
 Topik: ${idea.topic}
 Konteks: ${idea.context}`
-        }
-      ],
-      temperature: 0.8
-    })
+          }
+        ],
+        temperature: 0.8
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
   });
 
   const data = await response.json();
   const content = data.choices[0].message.content;
-  const clean = content.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  // Parse dan validasi output JSON dari LLM sebagai array of arrays
+  return parseLLMJson(content, 'array');
 }

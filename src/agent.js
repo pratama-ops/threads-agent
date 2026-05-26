@@ -7,6 +7,8 @@ import { readMemory, writeMemory, addLearning, addAvoid, updateWeeklySummary, lo
 import { publishPost, getApprovedDraft } from './tools/publish.js';
 import { fetchAllMetrics } from './tools/analytic.js';
 import db from './db.js';
+import { withRetry } from './utils/retry.js';
+import { parseLLMJson } from './utils/parseLLM.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
@@ -160,18 +162,19 @@ async function runEvaluation() {
 
 // Evaluasi dengan Groq
 async function evaluateWithGroq(posts) {
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        {
-          role: 'system',
-          content: `Kamu adalah analis konten media sosial yang spesialis di niche trading forex dan crypto.
+  const response = await withRetry(async () => {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          {
+            role: 'system',
+            content: `Kamu adalah analis konten media sosial yang spesialis di niche trading forex dan crypto.
 Tugasmu adalah menganalisa performa postingan Threads dan menghasilkan insights yang actionable.
 
 Output HARUS berupa JSON dengan format:
@@ -184,21 +187,24 @@ Output HARUS berupa JSON dengan format:
 }
 
 Respond dengan JSON saja, tanpa teks lain.`
-        },
-        {
-          role: 'user',
-          content: `Analisa performa postingan berikut dan berikan insights:
+          },
+          {
+            role: 'user',
+            content: `Analisa performa postingan berikut dan berikan insights:
 ${JSON.stringify(posts, null, 2)}`
-        }
-      ],
-      temperature: 0.3
-    })
+          }
+        ],
+        temperature: 0.3
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
   });
 
   const data = await response.json();
   const content = data.choices[0].message.content;
-  const clean = content.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  // Parse dan validasi output JSON dari LLM sebagai object
+  return parseLLMJson(content, 'object');
 }
 
 // Kirim draft ke Telegram
@@ -246,14 +252,18 @@ Reply dengan:
 *skip* → skip hari ini
   `.trim();
 
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: TELEGRAM_CHAT_ID,
-      text: message,
-      parse_mode: 'Markdown'
-    })
+  await withRetry(async () => {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: 'Markdown'
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
   });
 
   console.log('📨 Draft dikirim ke Telegram');
