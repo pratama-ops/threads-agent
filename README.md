@@ -22,14 +22,17 @@ Threads Agent is a Node.js-based autonomous agent that runs on a schedule and ha
 
 ```
 Every Monday
+└── Fetches performance metrics from last week's posts (via Threads API)
+└── Evaluates patterns: what angles perform, what formats flop
+└── Writes learnings to memory.json
 └── Researches trending angles in forex & crypto niche (via Tavily)
 └── Generates 10 content ideas informed by past performance data
-└── Evaluates last week's post metrics and updates its memory
 
 Every Day at 6PM
 └── Picks the next idea from the idea stock
 └── Researches today's market context (news, sentiment, key events)
-└── Generates 3 draft variations using Groq LLM
+└── Generates 3 draft variations in threaded format:
+    Hook → Content layers → Closing
 └── Sends drafts to your Telegram for review
 
 You (via Telegram)
@@ -38,14 +41,8 @@ You (via Telegram)
 └── Reply "skip" to skip today
 
 After Approval
-└── Posts to Threads via Threads API
+└── Posts to Threads as a layered thread (hook + replies)
 └── Tracks post ID for later analytics
-
-Every Monday (alongside research)
-└── Pulls performance metrics (views, likes, replies, reposts)
-└── Analyzes patterns: what angles perform, what formats flop
-└── Writes learnings to memory.json
-└── Next cycle's research is informed by these learnings
 ```
 
 ---
@@ -109,10 +106,13 @@ threads-agent/
 ├── src/
 │   ├── tools/
 │   │   ├── research.js        # Tavily API — research ideas & market context
-│   │   ├── generateContent.js # Groq API — generate draft posts
-│   │   ├── publish.js         # Threads API — publish posts
+│   │   ├── generateContent.js # Groq API — generate threaded draft posts
+│   │   ├── publish.js         # Threads API — publish layered thread posts
 │   │   ├── analytics.js       # Threads API — fetch post metrics
 │   │   └── memory.js          # Read/write memory.json & SQLite logs
+│   ├── utils/
+│   │   ├── retry.js           # Retry mechanism for API calls
+│   │   └── parseLLM.js        # LLM output validation and parsing
 │   ├── agent.js               # Core orchestrator — decision making & evaluation
 │   ├── scheduler.js           # Cron jobs — weekly & daily triggers
 │   ├── db.js                  # SQLite setup & schema
@@ -125,7 +125,7 @@ threads-agent/
 └── package.json
 ```
 
-**Architecture principle:** `agent.js` thinks, `tools/` executes. The agent is the brain; each tool is a capability it can call.
+**Architecture principle:** `agent.js` thinks, `tools/` executes. The agent is the brain; each tool is a capability it can call. `utils/` provides shared helpers used across tools.
 
 ---
 
@@ -159,6 +159,7 @@ TELEGRAM_CHAT_ID=your_telegram_chat_id
 THREADS_APP_ID=your_threads_app_id
 THREADS_APP_SECRET=your_threads_app_secret
 THREADS_ACCESS_TOKEN=your_threads_access_token
+THREADS_USER_ID=your_threads_user_id
 ```
 
 ### Running the Agent
@@ -185,12 +186,27 @@ node src/index.js --daily
 
 ---
 
+## Threaded Post Format
+
+Posts are published as layered threads, not single posts. Each draft follows this structure:
+
+```
+🪝 Hook     → stops the scroll, stands alone without context
+📌 Post 2   → first insight or point
+📌 Post 3   → second insight or point
+🔚 Closing  → conclusion or question that invites replies
+```
+
+This format maximizes reach — the hook appears in the feed, and readers who engage see the full thread.
+
+---
+
 ## Database Schema
 
 | Table | Purpose |
 |---|---|
 | `ideas` | Weekly idea stock with angle, topic, context, and status |
-| `drafts` | Generated draft variations per idea |
+| `drafts` | Generated draft variations per idea (stored as JSON string) |
 | `posts` | Published posts with Threads post ID |
 | `metrics` | Performance data per post (views, likes, replies, reposts) |
 | `logs` | Agent activity log for debugging and auditing |
@@ -215,8 +231,11 @@ Once a draft is sent to your Telegram:
 - [x] Daily draft generation with market context
 - [x] Telegram approval workflow
 - [x] Self-improving memory loop
-- [ ] Threads API publishing (`publish.js`)
-- [ ] Post analytics fetching (`analytics.js`)
+- [x] Threaded post format (layered replies)
+- [x] Threads API publishing
+- [x] Post analytics fetching
+- [x] Error handling and retry mechanism
+- [x] LLM output validation
 - [ ] Railway deployment guide
 
 ---
