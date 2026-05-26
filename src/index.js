@@ -3,7 +3,7 @@ dotenv.config();
 
 import db from './db.js';
 import { startScheduler } from './scheduler.js';
-import { runWeeklyWorkflow, runDailyWorkflow } from './agent.js';
+import { runWeeklyWorkflow, runDailyWorkflow, runPublishWorkflow } from './agent.js';
 import TelegramBot from 'node-telegram-bot-api';
 
 //menangkap kalimat yang di entry dari terminal
@@ -68,6 +68,7 @@ function startTelegramListener() {
 
       bot.sendMessage(chatId, `✅ Draft ${text} diapprove!\n\n"${chosen.content}"\n\nSedang dipost ke Threads...`);
       console.log(`✅ Draft ${text} diapprove: ${chosen.content}`);
+      await runPublishWorkflow();
 
     } else if (text.toLowerCase().startsWith('edit:')) {
       // Pakai versi custom dari kamu
@@ -89,6 +90,7 @@ function startTelegramListener() {
 
       bot.sendMessage(chatId, `✅ Versi custom disimpan!\n\n"${customContent}"\n\nSedang dipost ke Threads...`);
       console.log(`✅ Custom draft approved: ${customContent}`);
+      await runPublishWorkflow();
 
     } else if (text.toLowerCase() === 'skip') {
       // Skip semua draft hari ini

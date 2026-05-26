@@ -4,6 +4,7 @@ dotenv.config();
 import { researchWeeklyIdeas, researchDaily } from './tools/research.js';
 import { generateDrafts, getNextIdea } from './tools/generateContent.js';
 import { readMemory, writeMemory, addLearning, addAvoid, updateWeeklySummary, logActivity } from './tools/memory.js';
+import { publishPost, getApprovedDraft } from './tools/publish.js';
 import db from './db.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -247,4 +248,17 @@ Reply dengan:
   });
 
   console.log('📨 Draft dikirim ke Telegram');
+}
+
+// Jalankan function publish ke threads setelah approval
+export async function runPublishWorkflow() {
+  const approved = getApprovedDraft();
+
+  if (!approved) {
+    console.log('⚠️ Tidak ada draft yang approved');
+    return;
+  }
+
+  console.log(`📤 Publishing: ${approved.content}`);
+  await publishPost(approved.id, approved.content);
 }
