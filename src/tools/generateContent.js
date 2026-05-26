@@ -3,30 +3,27 @@ import { getMemoryContext } from './memory.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-// Fungsi utama: generate 3 variasi draft dari 1 ide
+//generate 3 variasi draft 
 export async function generateDrafts(idea, dailyContext) {
   try {
     const memoryContext = getMemoryContext();
-
-    // 1. Generate 3 variasi draft
     const drafts = await generateWithGroq(idea, dailyContext, memoryContext);
 
-    // 2. Simpan semua variasi ke database
     const insertDraft = db.prepare(`
       INSERT INTO drafts (idea_id, content, variant, status)
       VALUES (?, ?, ?, 'pending')
     `);
 
+    // drafts sekarang array of arrays
+    // simpan sebagai JSON string supaya publish.js bisa parse
     for (let i = 0; i < drafts.length; i++) {
-      insertDraft.run(idea.id, drafts[i], i + 1);
+      insertDraft.run(idea.id, JSON.stringify(drafts[i]), i + 1);
     }
 
-    // 3. Update status ide jadi 'drafted'
     db.prepare(`
       UPDATE ideas SET status = 'drafted' WHERE id = ?
     `).run(idea.id);
 
-    // 4. Log
     db.prepare(`
       INSERT INTO logs (event, status, detail)
       VALUES (?, ?, ?)
@@ -76,15 +73,19 @@ async function generateWithGroq(idea, dailyContext, memoryContext) {
         {
           role: 'system',
           content: `Kamu adalah copywriter ahli untuk konten Threads tentang trading forex dan crypto.
-Tugasmu adalah membuat postingan Threads yang engaging, singkat, dan memancing interaksi.
+Tugasmu adalah membuat threaded post yang engaging — bukan single post biasa.
+
+FORMAT THREADED POST:
+- Post 1 (HOOK): kalimat pembuka yang bikin orang berhenti scroll. Maksimal 2 baris. Harus memancing rasa ingin tahu.
+- Post 2-4 (ISI): masing-masing satu poin/insight. Singkat, padat, conversational.
+- Post terakhir (CLOSING): kesimpulan atau pertanyaan yang memancing reply.
 
 ATURAN MENULIS:
-- Maksimal 400 karakter per postingan
-- Baris pertama HARUS berupa hook yang kuat — orang harus berhenti scroll
-- Gunakan bahasa Indonesia yang natural dan conversational
-- Hindari terkesan jualan atau promosi
-- Boleh pakai angka spesifik untuk hook (contoh: "3 kesalahan yang...")
-- Akhiri dengan pertanyaan atau statement yang memancing reply
+- Setiap post maksimal 300 karakter
+- Bahasa Indonesia yang natural, seperti ngobrol
+- Jangan terkesan jualan atau sok formal
+- Angka spesifik lebih kuat dari pernyataan umum
+- Hook harus bisa berdiri sendiri tanpa context
 
 EVALUASI SEBELUMNYA:
 ${memoryContext}
@@ -92,14 +93,33 @@ ${memoryContext}
 CONTEXT PASAR HARI INI:
 ${dailyContext}
 
-Output HARUS berupa JSON array berisi tepat 3 string postingan:
-["draft 1", "draft 2", "draft 3"]
+Output HARUS berupa JSON array of arrays — 3 variasi thread, tiap thread berisi array of strings:
+[
+  [
+    "hook thread 1",
+    "post ke-2 thread 1",
+    "post ke-3 thread 1",
+    "closing thread 1"
+  ],
+  [
+    "hook thread 2",
+    "post ke-2 thread 2",
+    "post ke-3 thread 2",
+    "closing thread 2"
+  ],
+  [
+    "hook thread 3",
+    "post ke-2 thread 3",
+    "post ke-3 thread 3",
+    "closing thread 3"
+  ]
+]
 
 Respond dengan JSON saja, tanpa teks lain.`
         },
         {
           role: 'user',
-          content: `Buatkan 3 variasi postingan Threads dengan:
+          content: `Buatkan 3 variasi threaded post dengan:
 Angle: ${idea.angle}
 Topik: ${idea.topic}
 Konteks: ${idea.context}`
@@ -111,7 +131,6 @@ Konteks: ${idea.context}`
 
   const data = await response.json();
   const content = data.choices[0].message.content;
-
   const clean = content.replace(/```json|```/g, '').trim();
   return JSON.parse(clean);
 }

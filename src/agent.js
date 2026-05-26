@@ -202,38 +202,42 @@ async function sendToTelegram(idea, drafts) {
   const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    // Kalau Telegram belum setup, print ke terminal dulu
     console.log('\n📝 DRAFT HARI INI:');
     console.log(`Ide: [${idea.angle}] ${idea.topic}\n`);
-    drafts.forEach((draft, i) => {
-      console.log(`--- Draft ${i + 1} ---`);
-      console.log(draft);
+    drafts.forEach((thread, i) => {
+      console.log(`--- Thread ${i + 1} ---`);
+      thread.forEach((post, j) => {
+        console.log(`Post ${j + 1}: ${post}`);
+      });
       console.log('');
     });
-    console.log('⚠️ Telegram belum dikonfigurasi, draft ditampilkan di terminal');
     return;
   }
 
+  // Format tiap thread supaya keliatan struktur layering-nya
+  const formatThread = (thread, index) => {
+    return `*Thread ${index + 1}:*\n` + thread.map((post, i) => {
+      const label = i === 0 ? '🪝 Hook' : i === thread.length - 1 ? '🔚 Closing' : `📌 Post ${i + 1}`;
+      return `${label}:\n${post}`;
+    }).join('\n\n');
+  };
+
   const message = `
 🤖 *Draft Threads Hari Ini*
-
 💡 *Ide:* ${idea.topic}
 🎯 *Angle:* ${idea.angle}
 
-*Draft 1:*
-${drafts[0]}
+${formatThread(drafts[0], 0)}
 
-*Draft 2:*
-${drafts[1]}
+${formatThread(drafts[1], 1)}
 
-*Draft 3:*
-${drafts[2]}
+${formatThread(drafts[2], 2)}
 
 Reply dengan:
-*1* → pilih draft 1
-*2* → pilih draft 2
-*3* → pilih draft 3
-*edit: [teks kamu]* → pakai versi kamu sendiri
+*1* → pilih thread 1
+*2* → pilih thread 2
+*3* → pilih thread 3
+*edit: [teks]* → pakai versi kamu sendiri
 *skip* → skip hari ini
   `.trim();
 
