@@ -67,8 +67,8 @@ export function updateWeeklySummary(summary) {
     //tambahkan ringkasan minggu ini ke array weekly_summary
     memory.weekly_summary.push(summary);
     memory.cycles_completed += 1
-    memory.last_updated = new Date().toISOString.split('T')[0]
-    writeMemory(summary)
+    memory.last_updated = new Date().toISOString().split('T')[0]
+    writeMemory(memory)
 }
 
 // masukkan aktivitas agent ke SQLite

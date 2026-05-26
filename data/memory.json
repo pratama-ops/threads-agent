@@ -1,12 +1,46 @@
 {
-  "last_updated": null,
-  "cycles_completed": 0,
-  "learnings": [],
-  "avoid": [],
+  "last_updated": "2026-05-26",
+  "cycles_completed": 1,
+  "learnings": [
+    "Postingan dengan angle 'Confessional' memiliki potensi untuk menarik perhatian audiens karena membagikan pengalaman pribadi",
+    "Postingan dengan angle 'Contrary opinion' dapat memicu diskusi dan meningkatkan interaksi, seperti terlihat dari jumlah replies",
+    "Kurangnya data tentang views, likes, dan reposts pada postingan pertama membuat sulit untuk menilai performa secara keseluruhan",
+    "Postingan dengan topik yang terkait dengan kesalahan umum dalam trading forex dapat memicu diskusi dan interaksi",
+    "Angle 'Contrary opinion' dapat menarik perhatian audiens karena membangkitkan rasa ingin tahu dan memicu diskusi",
+    "Postingan dengan angle 'Confessional' dapat menarik perhatian audiens karena bersifat personal dan relatable",
+    "Postingan dengan judul yang menarik dan mengandung kata-kata yang provokatif dapat meningkatkan engagement",
+    "Data tentang views, likes, dan reposts sangat penting untuk mengevaluasi performa postingan",
+    "Postingan dengan angle 'Contrary opinion' dapat memicu diskusi yang lebih banyak, seperti terlihat dari jumlah replies yang lebih tinggi",
+    "Postingan yang lebih spesifik dan personal, seperti 'Saya pernah terjebak dalam emosi trading', dapat lebih menarik perhatian pembaca"
+  ],
+  "avoid": [
+    "Menggunakan format postingan yang tidak lengkap, seperti tidak menyertakan data views, likes, dan reposts",
+    "Mengabaikan pentingnya waktu posting yang strategis untuk meningkatkan visibilitas",
+    "Menggunakan topik yang terlalu umum atau tidak spesifik",
+    "Tidak menyediakan data atau statistik untuk mendukung argumen",
+    "Menggunakan angle yang tidak sesuai dengan target audiens",
+    "Tidak menyediakan data yang lengkap tentang performa postingan",
+    "Jangan posting pada jam yang terlalu pagi atau tidak strategis, karena dapat mempengaruhi visibilitas postingan",
+    "Pastikan untuk mengisi semua field yang relevan, seperti views, likes, dan reposts, untuk mendapatkan data yang akurat"
+  ],
   "best_performing": {
-    "angles": [],
-    "formats": [],
+    "angles": [
+      "Contrary opinion",
+      "Confessional"
+    ],
+    "formats": [
+      "Pertanyaan yang memicu diskusi",
+      "Pengalaman pribadi yang dapat dihubungkan dengan topik"
+    ],
     "posting_time": null
   },
-  "weekly_summary": []
+  "weekly_summary": [
+    {
+      "week": "2026-05-26",
+      "total_posts": 2,
+      "avg_likes": 0,
+      "avg_replies": 2,
+      "top_post_id": 2
+    }
+  ]
 }

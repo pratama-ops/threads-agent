@@ -5,6 +5,7 @@ import { researchWeeklyIdeas, researchDaily } from './tools/research.js';
 import { generateDrafts, getNextIdea } from './tools/generateContent.js';
 import { readMemory, writeMemory, addLearning, addAvoid, updateWeeklySummary, logActivity } from './tools/memory.js';
 import { publishPost, getApprovedDraft } from './tools/publish.js';
+import { fetchAllMetrics } from './tools/analytic.js';
 import db from './db.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -22,12 +23,16 @@ export async function runWeeklyWorkflow() {
 
     console.log(`📦 Stok ide tersisa: ${remainingIdeas.count}`);
 
+    // Ambil metrics dulu sebelum evaluasi
+    console.log('📊 Mengambil metrics post minggu lalu...');
+    await fetchAllMetrics();
+
+    // Baru evaluasi dengan data metrics yang sudah ada
+    await runEvaluation();
+
     // 2. Riset ide baru
     console.log('🔍 Riset ide minggu ini...');
     await researchWeeklyIdeas();
-
-    // 3. Evaluasi minggu lalu (kalau ada data)
-    await runEvaluation();
 
     console.log('✅ Weekly workflow selesai');
 
