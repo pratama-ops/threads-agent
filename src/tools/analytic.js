@@ -7,8 +7,8 @@ import { withRetry } from '../utils/retry.js';
 const THREADS_ACCESS_TOKEN = process.env.THREADS_ACCESS_TOKEN;
 
 /**
- * Ambil metrics dari Threads API untuk semua post yang belum diukur.
- * Dipanggil setiap Senin sebagai bagian dari weekly workflow.
+ * Ambil metrics dari Threads API untuk semua post yang belum diukur
+ * Dipanggil setiap Senin sebagai bagian dari weekly workflow
  */
 export async function fetchAllMetrics() {
   try {
